@@ -4,6 +4,7 @@ import java.util.Map;
 
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.slf4j.Logger;
@@ -13,7 +14,6 @@ import com.orchetrator.CloudifyClient.HttpClientPool.HttpClientPool;
 import com.orchetrator.CloudifyClient.config.Constants;
 import com.orchetrator.CloudifyClient.model.Response;
 import com.orchetrator.CloudifyClient.util.ParseResponse;
-
 
 public class ProviderImp {
 	
@@ -68,11 +68,44 @@ public class ProviderImp {
 	}
 	
 	public Response post(String uri) {
-		Response response = new Response();
-		RequestBuilder requestBuilder = RequestBuilder.post();
-        requestBuilder.setUri(uri);
-		return response;
+		return post(uri, null, null, null);
 	}
+	
+	public Response post(String uri, Map<String, String> headers, Map<String, Object> parameters, byte[] body) {
+
+        if (uri == null || uri.isEmpty()) {
+            throw new IllegalArgumentException("uri is required");
+        }
+
+        final RequestBuilder requestBuilder = RequestBuilder.post();
+        requestBuilder.setUri(uri);
+
+        // Populate request parameters
+        if (parameters != null && !parameters.isEmpty()) {
+            for (final String key : parameters.keySet()) {
+                if (parameters.get(key) != null) {
+                    requestBuilder.addParameter(key, String.valueOf(parameters.get(key)));
+                }
+            }
+        }
+        // Populate request body
+        if (body != null) {
+            requestBuilder.setEntity(new ByteArrayEntity(body));
+        }
+
+        // Request configuration can be overridden at the request level.
+        // They will take precedence over the one set at the client level.
+        requestBuilder.setConfig(defaultRequestConfig);
+
+        // Set custom header
+        if (headers != null && !headers.isEmpty()) {
+            for (final String key : headers.keySet()) {
+                requestBuilder.addHeader(key, headers.get(key));
+            }
+        }
+
+        return ParseResponse.getInstance().parse(HttpClientPool.getClient(), requestBuilder.build());
+    }
 	
 	public Response put() {
 		Response response = new Response();
